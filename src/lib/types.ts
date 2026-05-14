@@ -27,12 +27,27 @@ export type CallStatus =
 
 export type ScoreTier = "Priority A" | "Priority B" | "Priority C" | "Low Priority";
 
+export type QualificationStatus = "Hot" | "Warm" | "Cold" | "Unqualified" | "Needs enrichment data";
+
 export type ScoreBreakdown = {
   totalScore: number;
   tier: ScoreTier;
+  qualificationStatus: QualificationStatus;
   reasons: string[];
   weaknesses: string[];
   recommendedAction: string;
+};
+
+export type ProspectRoute = "Outreach Caller" | "General/Status Alignment" | "Hold";
+
+export type ProspectRouteDecision = {
+  route: ProspectRoute;
+  qualificationStatus: QualificationStatus;
+  leadScore: number | null;
+  needsEnrichment: boolean;
+  missingFields: string[];
+  reasons: string[];
+  tags: string[];
 };
 
 export type CallLog = {

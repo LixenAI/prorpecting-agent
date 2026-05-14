@@ -1,4 +1,4 @@
-import type { Lead, ScoreBreakdown, ScoreTier } from "./types";
+import type { Lead, QualificationStatus, ScoreBreakdown, ScoreTier } from "./types";
 
 const highTicketKeywords = [
   "botox",
@@ -38,6 +38,14 @@ export function getScoreTier(score: number): ScoreTier {
   if (score >= 60) return "Priority B";
   if (score >= 40) return "Priority C";
   return "Low Priority";
+}
+
+export function getQualificationStatus(score: number | null | undefined): QualificationStatus {
+  if (score == null) return "Needs enrichment data";
+  if (score >= 80) return "Hot";
+  if (score >= 60) return "Warm";
+  if (score >= 40) return "Cold";
+  return "Unqualified";
 }
 
 export function scoreLead(lead: Lead): ScoreBreakdown {
@@ -102,6 +110,7 @@ export function scoreLead(lead: Lead): ScoreBreakdown {
   return {
     totalScore,
     tier,
+    qualificationStatus: getQualificationStatus(totalScore),
     reasons,
     weaknesses: Array.from(new Set(weaknesses)),
     recommendedAction

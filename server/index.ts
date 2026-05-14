@@ -7,6 +7,7 @@ import { applyScore, addLead, getLead, getLeads, getSettings, normalizeLead, sav
 import { queueAiCall } from "./services/aiCaller";
 import { syncLeadToGhl } from "./services/ghl";
 import { handleAiCallOutcome } from "./services/outcomes";
+import { routeProspect, type ProspectRouteInput } from "../src/lib/routing";
 
 const app = express();
 const port = Number(process.env.PORT || 8787);
@@ -130,6 +131,12 @@ app.post("/api/leads/:id/sync-ghl", async (req, res) => {
     return res.json({ ...result, lead: updated });
   }
   res.status(502).json(result);
+});
+
+app.post("/api/route-prospect", (req, res) => {
+  const input = (req.body ?? {}) as ProspectRouteInput;
+  const decision = routeProspect(input);
+  res.json(decision);
 });
 
 app.post("/api/ai-call/outcome", async (req, res) => {
