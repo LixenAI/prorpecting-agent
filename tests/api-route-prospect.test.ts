@@ -117,4 +117,94 @@ describe("api/route-prospect serverless handler", () => {
     const response = await invoke("GET");
     expect(response.statusCode).toBe(405);
   });
+
+  it("matches the production smoke-test body that previously returned 500", async () => {
+    const response = await invoke(
+      "POST",
+      {
+        businessName: "Glow Med Spa",
+        city: "Irvine",
+        website: "https://glow.example",
+        leadScore: 82
+      },
+      true
+    );
+    expect(response.statusCode).toBe(200);
+    const decision = response.json() as { route: string; tags: string[] };
+    expect(decision.route).toBe("Outreach Caller");
+    expect(decision.tags).toContain("medspa_ai_call_queued");
+  });
+
+  it("matches the production smoke-test body with empty strings (previously 500)", async () => {
+    const response = await invoke(
+      "POST",
+      { businessName: "Glow Med Spa", city: "", website: "" },
+      true
+    );
+    expect(response.statusCode).toBe(200);
+    const decision = response.json() as {
+      route: string;
+      tags: string[];
+      missingFields: string[];
+    };
+    expect(decision.route).toBe("General/Status Alignment");
+    expect(decision.tags).toContain("needs_enrichment_data");
+    expect(decision.missingFields).toEqual(["city", "website"]);
+  });
+
+  it("returns a JSON error (not FUNCTION_INVOCATION_FAILED) if the body stream throws", async () => {
+    const broken = Readable.from(
+      (function* () {
+        throw new Error("boom: simulated upstream stream failure");
+        // eslint-disable-next-line no-unreachable
+        yield Buffer.from("");
+      })()
+    );
+    const req = Object.assign(broken, {
+      method: "POST",
+      url: "/api/route-prospect",
+      headers: { "content-type": "application/json" }
+    }) as unknown as IncomingMessage & { body?: unknown };
+    const { res, captured } = makeRes();
+    await handler(req, res);
+    const response = await captured;
+    expect(response.statusCode).toBe(500);
+    const payload = response.json() as { message: string; error: string };
+    expect(payload.message).toMatch(/Unexpected error/);
+    expect(payload.error).toMatch(/boom/);
+  });
+});
+
+describe("api/route-prospect deploy-safe layout", () => {
+  it("only imports from within the api/ tree so Vercel bundles all deps", async () => {
+    const { readFileSync } = await import("node:fs");
+    const path = await import("node:path");
+    const root = path.resolve(__dirname, "..", "api");
+    const visited = new Set<string>();
+    const queue: string[] = [path.join(root, "route-prospect.ts")];
+    const importRe = /from\s+["']([^"']+)["']/g;
+    while (queue.length) {
+      const file = queue.shift()!;
+      if (visited.has(file)) continue;
+      visited.add(file);
+      const src = readFileSync(file, "utf8");
+      let m: RegExpExecArray | null;
+      while ((m = importRe.exec(src))) {
+        const spec = m[1];
+        if (!spec.startsWith(".")) continue;
+        expect(
+          spec.endsWith(".js"),
+          `relative import in ${path.relative(root, file)} must use .js extension for Node ESM: "${spec}"`
+        ).toBe(true);
+        const resolvedDir = path.dirname(file);
+        const candidate = path.resolve(resolvedDir, spec.replace(/\.js$/, ".ts"));
+        expect(
+          candidate.startsWith(root + path.sep) || candidate === root,
+          `api/ handler imports must live under api/ (got ${candidate})`
+        ).toBe(true);
+        queue.push(candidate);
+      }
+    }
+    expect(visited.size).toBeGreaterThan(1);
+  });
 });
