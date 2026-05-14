@@ -27,6 +27,7 @@ describe("scoreLead", () => {
     const result = scoreLead(baseLead);
     expect(result.totalScore).toBe(100);
     expect(result.tier).toBe("Priority A");
+    expect(result.qualificationStatus).toBe("Hot");
     expect(result.reasons).toContain("+20 No online booking is visible");
   });
 

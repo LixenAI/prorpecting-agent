@@ -146,11 +146,79 @@ Every callable lead must have a business name, phone, and source.
 - `POST /api/leads/:id/queue-ai-call`
 - `POST /api/leads/queue-batch`
 - `POST /api/leads/:id/sync-ghl`
+- `POST /api/route-prospect`
 - `POST /api/ai-call/outcome`
 - `POST /api/leads/:id/do-not-contact`
 - `PATCH /api/leads/:id/status`
 - `GET /api/export/leads`
 - `GET/PATCH /api/settings`
+
+## GHL / Lixen Agent Studio Routing
+
+The Agent Studio workflow must NEVER pause to ask a human for missing
+prospect info during execution. Use `POST /api/route-prospect` from the
+Enrichment & Scoring node to get a deterministic routing decision.
+
+Request body (any field may be omitted — the endpoint never throws on
+missing data):
+
+```json
+{
+  "businessName": "{{contact.company_name}}",
+  "city": "{{contact.city}}",
+  "website": "{{contact.website}}",
+  "phone": "{{contact.phone}}",
+  "leadScore": "{{contact.custom_fields.medspa_score}}",
+  "qualificationStatus": "{{contact.custom_fields.qualification_status}}",
+  "visibleWeaknesses": "{{contact.custom_fields.visible_weaknesses}}",
+  "services": "{{contact.custom_fields.services}}",
+  "googleRating": "{{contact.custom_fields.google_rating}}",
+  "reviewCount": "{{contact.custom_fields.review_count}}",
+  "optOut": "{{contact.dnd}}"
+}
+```
+
+Response:
+
+```json
+{
+  "route": "Outreach Caller" | "General/Status Alignment" | "Hold",
+  "qualificationStatus": "Hot" | "Warm" | "Cold" | "Unqualified" | "Needs enrichment data",
+  "leadScore": 82,
+  "needsEnrichment": false,
+  "missingFields": [],
+  "reasons": ["Lead qualified (score=82, status=Hot); routing to Outreach Caller."],
+  "tags": ["medspa_ai_call_queued"]
+}
+```
+
+Routing rules (mirrored exactly in `src/lib/routing.ts`):
+
+1. **`optOut` or `status=do_not_contact`** → `route=Hold`, tag `do_not_contact`. Never call.
+2. **`leadScore >= 60` OR `qualificationStatus in {Hot, Warm}`** AND no missing fields → `route=Outreach Caller`, tag `medspa_ai_call_queued`.
+3. **Missing `businessName` / `city` / `website` OR no `leadScore` available** → `route=General/Status Alignment`, tag `needs_enrichment_data`. The workflow continues — it does not stop to ask a human.
+4. **`leadScore < 60` and no qualifying status** → `route=Hold`. Do not call.
+
+In the GHL Agent Studio config:
+
+- The `medspa_prospect_ready` tag fires the Enrichment & Scoring node.
+- The Enrichment & Scoring node calls `POST /api/route-prospect` (or runs the equivalent rules inline) and writes `lead_score`, `qualification_status`, and any `needs_enrichment_data` tag back onto the contact.
+- The router node branches on `route`:
+  - `Outreach Caller` → invoke the AI caller agent.
+  - `General/Status Alignment` → status update / enrichment task workflow.
+  - `Hold` → no action.
+- The Outreach Caller agent must include the booking link `https://link.lixen.ai/widget/booking/W0BVrWmszScBAjQhN631` in interested-path messages.
+
+### Fallback workflow without Agent Studio
+
+If Agent Studio cannot be configured correctly, the same logic runs end-to-end via this app:
+
+1. `POST /api/leads` (or `/api/import/csv`) ingests prospects.
+2. `POST /api/leads/score-all` runs the scoring engine (qualificationStatus + tier).
+3. `POST /api/leads/queue-batch` queues every lead with `score >= QUALIFICATION_SCORE_THRESHOLD` (default 60) through the AI caller adapter.
+4. `POST /api/ai-call/outcome` ingests call outcomes and `POST /api/leads/:id/sync-ghl` syncs back to GHL.
+
+With `MOCK_AI_CALLER=true` and `MOCK_GHL=true` (defaults), this whole pipeline runs without any live external calls.
 
 ## Testing Checklist
 

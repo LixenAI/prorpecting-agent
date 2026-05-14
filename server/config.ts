@@ -1,4 +1,5 @@
 import type { AppSettings, LeadStatus } from "../src/lib/types";
+import { LIXEN_BOOKING_LINK } from "../src/lib/callScript";
 
 const boolEnv = (name: string, fallback: boolean) => {
   const value = process.env[name];
@@ -35,7 +36,7 @@ export function getSettingsFromEnv(): AppSettings {
     callingStartHour: numEnv("CALLING_START_HOUR", 9),
     callingEndHour: numEnv("CALLING_END_HOUR", 17),
     maxCallAttempts: numEnv("MAX_CALL_ATTEMPTS", 3),
-    bookingCalendarUrl: process.env.BOOKING_CALENDAR_URL,
+    bookingCalendarUrl: process.env.BOOKING_CALENDAR_URL || LIXEN_BOOKING_LINK,
     makeZapierWebhookUrl: process.env.MAKE_ZAPIER_WEBHOOK_URL || process.env.AI_CALL_WEBHOOK_URL,
     ghlPipelineId: process.env.GHL_PIPELINE_ID,
     ghlStageMap: stageMap,
@@ -46,11 +47,13 @@ export function getSettingsFromEnv(): AppSettings {
 
 export const requiredPublicTags = [
   "medspa_prospect",
+  "medspa_prospect_ready",
   "medspa_priority_a",
   "medspa_ai_call_queued",
   "medspa_called_no_answer",
   "medspa_interested",
   "medspa_audit_booked",
   "medspa_follow_up_needed",
+  "needs_enrichment_data",
   "do_not_contact"
 ];

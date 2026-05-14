@@ -1,3 +1,5 @@
+export const LIXEN_BOOKING_LINK = "https://link.lixen.ai/widget/booking/W0BVrWmszScBAjQhN631";
+
 export const defaultCallScript = {
   persona: "Ava from Lixen AI",
   opening:
@@ -9,7 +11,7 @@ export const defaultCallScript = {
   ifAskedWhatThisIsAbout:
     "We help med spas turn more inquiries into booked consultations using AI follow-up, SMS nurture, missed-call recovery, and booking automation. The audit is free — we simply review where leads may be dropping off and show what could be fixed.",
   ifInterested:
-    "Perfect. I can send you a booking link or help find a time. What’s the best email or phone number to send the audit details?",
+    `Perfect. I can send you a booking link or help find a time. What’s the best email or phone number to send the audit details? You can also book directly at ${LIXEN_BOOKING_LINK}.`,
   ifNotInterested: "No problem. I’ll mark that down so we don’t keep reaching out. Have a great day.",
   voicemail:
     "Hi, this is Ava from Lixen AI. We help med spas recover missed consultation leads with AI follow-up and booking automation. I’ll send a quick text with details about a free lead-loss audit. Thanks.",
