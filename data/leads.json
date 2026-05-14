@@ -1,0 +1,481 @@
+[
+  {
+    "id": "uHIJq7KCKq6_zxDO4Usaj",
+    "businessName": "Bloom Aesthetics Studio",
+    "city": "Irvine",
+    "state": "CA",
+    "phone": "949-555-0142",
+    "email": "hello@bloomaesthetics.example",
+    "website": "https://bloomaesthetics.example",
+    "instagram": "https://instagram.com/bloomaesthetics.example",
+    "facebook": "https://facebook.com/bloomaesthetics.example",
+    "source": "sample_csv",
+    "googleRating": 4.8,
+    "reviewCount": 38,
+    "services": [
+      "Botox",
+      "Dermal fillers",
+      "Laser skin resurfacing"
+    ],
+    "ownerName": "Business Owner",
+    "managerName": "Clinic Manager",
+    "visibleWeaknesses": [
+      "No online booking visible",
+      "No SMS follow-up visible",
+      "No chatbot"
+    ],
+    "status": "interested",
+    "callStatus": "queued",
+    "callAttempts": 1,
+    "notes": "Looks like a strong med spa with weak lead capture.",
+    "optOut": false,
+    "callLogs": [
+      {
+        "id": "2OB2Lnf6PXfeYEfYC0ENw",
+        "aiCallId": "mock-call-EbuPkU07",
+        "status": "queued",
+        "summary": "Mock AI call queued. Simulate outcome from the lead detail page.",
+        "createdAt": "2026-05-09T23:21:54.444Z"
+      }
+    ],
+    "createdAt": "2026-05-09T23:08:30.048Z",
+    "updatedAt": "2026-05-09T23:22:10.690Z",
+    "score": 85,
+    "scoreBreakdown": {
+      "totalScore": 85,
+      "tier": "Priority A",
+      "reasons": [
+        "+20 No online booking is visible",
+        "+15 Review count is under 50",
+        "+10 No chatbot is visible",
+        "+15 No SMS follow-up is visible",
+        "+15 High-ticket aesthetic services are visible",
+        "+5 Google rating is 4.0 or higher",
+        "+5 Review count is over 25"
+      ],
+      "weaknesses": [
+        "Booking flow appears weak or missing",
+        "Review volume is still developing",
+        "Website has no immediate lead capture assistant",
+        "Follow-up is likely manual or inconsistent"
+      ],
+      "recommendedAction": "Queue for AI call after GHL sync and business-hours check."
+    },
+    "ghlContactId": "mock-ghl-contact-uHIJq7KCKq6_zxDO4Usaj",
+    "ghlOpportunityId": "mock-ghl-opportunity-uHIJq7KCKq6_zxDO4Usaj",
+    "aiCallId": "mock-call-EbuPkU07",
+    "lastContactedAt": "2026-05-09T23:21:54.444Z"
+  },
+  {
+    "id": "rhfJ2Yh7PsXEkgYz576P4",
+    "businessName": "Nova Glow Med Spa",
+    "city": "Phoenix",
+    "state": "AZ",
+    "phone": "602-555-0198",
+    "website": "https://novaglow.example",
+    "instagram": "https://instagram.com/novaglow.example",
+    "source": "sample_csv",
+    "googleRating": 4.6,
+    "reviewCount": 82,
+    "services": [
+      "Hydrafacial",
+      "Microneedling",
+      "Semaglutide program"
+    ],
+    "visibleWeaknesses": [
+      "Slow website",
+      "Inactive Instagram"
+    ],
+    "status": "scored",
+    "callStatus": "not_called",
+    "callAttempts": 0,
+    "optOut": false,
+    "callLogs": [],
+    "createdAt": "2026-05-09T23:08:30.048Z",
+    "updatedAt": "2026-05-09T23:08:30.048Z",
+    "score": 50,
+    "scoreBreakdown": {
+      "totalScore": 50,
+      "tier": "Priority C",
+      "reasons": [
+        "+15 Website appears slow, weak, or outdated",
+        "+10 Instagram appears inactive or inconsistent",
+        "+15 High-ticket aesthetic services are visible",
+        "+5 Google rating is 4.0 or higher",
+        "+5 Review count is over 25"
+      ],
+      "weaknesses": [
+        "Website conversion quality may be low",
+        "Social proof and inbound nurture look weak"
+      ],
+      "recommendedAction": "Nurture or research more before calling."
+    }
+  },
+  {
+    "id": "0eHnWwBWcbxBedguj929F",
+    "businessName": "Radiant Line Aesthetics",
+    "city": "Austin",
+    "state": "TX",
+    "phone": "512-555-0114",
+    "website": "https://radiantline.example",
+    "instagram": "https://instagram.com/radiantline.example",
+    "source": "sample_csv",
+    "googleRating": 4.9,
+    "reviewCount": 22,
+    "services": [
+      "Injectables",
+      "PDO threads",
+      "RF microneedling"
+    ],
+    "visibleWeaknesses": [
+      "No chatbot",
+      "Manual follow-up",
+      "No online booking visible"
+    ],
+    "status": "scored",
+    "callStatus": "not_called",
+    "callAttempts": 0,
+    "optOut": false,
+    "callLogs": [],
+    "createdAt": "2026-05-09T23:08:30.048Z",
+    "updatedAt": "2026-05-09T23:08:30.048Z",
+    "score": 80,
+    "scoreBreakdown": {
+      "totalScore": 80,
+      "tier": "Priority A",
+      "reasons": [
+        "+20 No online booking is visible",
+        "+15 Review count is under 50",
+        "+10 No chatbot is visible",
+        "+15 No SMS follow-up is visible",
+        "+15 High-ticket aesthetic services are visible",
+        "+5 Google rating is 4.0 or higher"
+      ],
+      "weaknesses": [
+        "Booking flow appears weak or missing",
+        "Review volume is still developing",
+        "Website has no immediate lead capture assistant",
+        "Follow-up is likely manual or inconsistent"
+      ],
+      "recommendedAction": "Queue for AI call after GHL sync and business-hours check."
+    }
+  },
+  {
+    "id": "eRwkWwLNE2jwZo84mf22h",
+    "businessName": "Pearl Skin Lounge",
+    "city": "San Diego",
+    "state": "CA",
+    "phone": "619-555-0166",
+    "website": "https://pearlskin.example",
+    "facebook": "https://facebook.com/pearlskin.example",
+    "source": "sample_csv",
+    "googleRating": 3.9,
+    "reviewCount": 17,
+    "services": [
+      "Facials",
+      "Chemical peels"
+    ],
+    "visibleWeaknesses": [
+      "Outdated website",
+      "No SMS follow-up visible"
+    ],
+    "status": "scored",
+    "callStatus": "not_called",
+    "callAttempts": 0,
+    "optOut": false,
+    "callLogs": [],
+    "createdAt": "2026-05-09T23:08:30.048Z",
+    "updatedAt": "2026-05-09T23:08:30.048Z",
+    "score": 45,
+    "scoreBreakdown": {
+      "totalScore": 45,
+      "tier": "Priority C",
+      "reasons": [
+        "+15 Website appears slow, weak, or outdated",
+        "+15 Review count is under 50",
+        "+15 No SMS follow-up is visible"
+      ],
+      "weaknesses": [
+        "Website conversion quality may be low",
+        "Review volume is still developing",
+        "Follow-up is likely manual or inconsistent"
+      ],
+      "recommendedAction": "Nurture or research more before calling."
+    }
+  },
+  {
+    "id": "kaxIjwQFFn28TIFfTXoOU",
+    "businessName": "Contour & Co Med Spa",
+    "city": "Denver",
+    "state": "CO",
+    "phone": "303-555-0180",
+    "website": "https://contourco.example",
+    "instagram": "https://instagram.com/contourco.example",
+    "source": "sample_csv",
+    "googleRating": 4.7,
+    "reviewCount": 44,
+    "services": [
+      "CoolSculpting",
+      "Body contouring",
+      "Laser hair removal"
+    ],
+    "visibleWeaknesses": [
+      "Booking not visible",
+      "No live chat",
+      "Weak follow-up"
+    ],
+    "status": "scored",
+    "callStatus": "not_called",
+    "callAttempts": 0,
+    "optOut": false,
+    "callLogs": [],
+    "createdAt": "2026-05-09T23:08:30.048Z",
+    "updatedAt": "2026-05-09T23:08:30.048Z",
+    "score": 85,
+    "scoreBreakdown": {
+      "totalScore": 85,
+      "tier": "Priority A",
+      "reasons": [
+        "+20 No online booking is visible",
+        "+15 Review count is under 50",
+        "+10 No chatbot is visible",
+        "+15 No SMS follow-up is visible",
+        "+15 High-ticket aesthetic services are visible",
+        "+5 Google rating is 4.0 or higher",
+        "+5 Review count is over 25"
+      ],
+      "weaknesses": [
+        "Booking flow appears weak or missing",
+        "Review volume is still developing",
+        "Website has no immediate lead capture assistant",
+        "Follow-up is likely manual or inconsistent"
+      ],
+      "recommendedAction": "Queue for AI call after GHL sync and business-hours check."
+    }
+  },
+  {
+    "id": "S5oTlXVlZ_Qc93haJ1b5I",
+    "businessName": "Luma Laser Clinic",
+    "city": "Portland",
+    "state": "OR",
+    "phone": "503-555-0119",
+    "website": "https://lumalaser.example",
+    "source": "sample_csv",
+    "googleRating": 4.2,
+    "reviewCount": 61,
+    "services": [
+      "Laser treatments",
+      "Skin tightening"
+    ],
+    "visibleWeaknesses": [
+      "Inactive Instagram"
+    ],
+    "status": "scored",
+    "callStatus": "not_called",
+    "callAttempts": 0,
+    "optOut": false,
+    "callLogs": [],
+    "createdAt": "2026-05-09T23:08:30.048Z",
+    "updatedAt": "2026-05-09T23:08:30.048Z",
+    "score": 35,
+    "scoreBreakdown": {
+      "totalScore": 35,
+      "tier": "Low Priority",
+      "reasons": [
+        "+10 Instagram appears inactive or inconsistent",
+        "+15 High-ticket aesthetic services are visible",
+        "+5 Google rating is 4.0 or higher",
+        "+5 Review count is over 25"
+      ],
+      "weaknesses": [
+        "Social proof and inbound nurture look weak"
+      ],
+      "recommendedAction": "Keep in database, but do not prioritize for calling."
+    }
+  },
+  {
+    "id": "DdWS3aJHlMQ7DLFhy1rS4",
+    "businessName": "Muse Injectable Bar",
+    "city": "Las Vegas",
+    "state": "NV",
+    "phone": "702-555-0137",
+    "website": "https://museinjectable.example",
+    "instagram": "https://instagram.com/museinjectable.example",
+    "source": "sample_csv",
+    "googleRating": 4.5,
+    "reviewCount": 29,
+    "services": [
+      "Botox",
+      "Fillers",
+      "PRP"
+    ],
+    "visibleWeaknesses": [
+      "No online booking visible",
+      "Slow website",
+      "No SMS follow-up visible"
+    ],
+    "status": "scored",
+    "callStatus": "not_called",
+    "callAttempts": 0,
+    "optOut": false,
+    "callLogs": [],
+    "createdAt": "2026-05-09T23:08:30.048Z",
+    "updatedAt": "2026-05-09T23:08:30.048Z",
+    "score": 90,
+    "scoreBreakdown": {
+      "totalScore": 90,
+      "tier": "Priority A",
+      "reasons": [
+        "+20 No online booking is visible",
+        "+15 Website appears slow, weak, or outdated",
+        "+15 Review count is under 50",
+        "+15 No SMS follow-up is visible",
+        "+15 High-ticket aesthetic services are visible",
+        "+5 Google rating is 4.0 or higher",
+        "+5 Review count is over 25"
+      ],
+      "weaknesses": [
+        "Booking flow appears weak or missing",
+        "Website conversion quality may be low",
+        "Review volume is still developing",
+        "Follow-up is likely manual or inconsistent"
+      ],
+      "recommendedAction": "Queue for AI call after GHL sync and business-hours check."
+    }
+  },
+  {
+    "id": "7MZ5rAabnT5SCdm5WFax5",
+    "businessName": "Everwell Beauty Lab",
+    "city": "Nashville",
+    "state": "TN",
+    "phone": "615-555-0108",
+    "website": "https://everwellbeauty.example",
+    "source": "sample_csv",
+    "googleRating": 4.1,
+    "reviewCount": 12,
+    "services": [
+      "Wellness shots",
+      "Facials"
+    ],
+    "visibleWeaknesses": [
+      "No chatbot",
+      "Manual booking"
+    ],
+    "status": "scored",
+    "callStatus": "not_called",
+    "callAttempts": 0,
+    "optOut": false,
+    "callLogs": [],
+    "createdAt": "2026-05-09T23:08:30.048Z",
+    "updatedAt": "2026-05-09T23:08:30.048Z",
+    "score": 50,
+    "scoreBreakdown": {
+      "totalScore": 50,
+      "tier": "Priority C",
+      "reasons": [
+        "+20 No online booking is visible",
+        "+15 Review count is under 50",
+        "+10 No chatbot is visible",
+        "+5 Google rating is 4.0 or higher"
+      ],
+      "weaknesses": [
+        "Booking flow appears weak or missing",
+        "Review volume is still developing",
+        "Website has no immediate lead capture assistant"
+      ],
+      "recommendedAction": "Nurture or research more before calling."
+    }
+  },
+  {
+    "id": "6O5pKq_5S2w-JaKwucTIP",
+    "businessName": "Serene Skin Collective",
+    "city": "Charlotte",
+    "state": "NC",
+    "phone": "704-555-0155",
+    "website": "https://sereneskin.example",
+    "instagram": "https://instagram.com/sereneskin.example",
+    "source": "sample_csv",
+    "googleRating": 4.8,
+    "reviewCount": 113,
+    "services": [
+      "Hydrafacial",
+      "Laser hair removal",
+      "Botox"
+    ],
+    "visibleWeaknesses": [
+      "No visible weakness"
+    ],
+    "status": "scored",
+    "callStatus": "not_called",
+    "callAttempts": 0,
+    "optOut": false,
+    "callLogs": [],
+    "createdAt": "2026-05-09T23:08:30.048Z",
+    "updatedAt": "2026-05-09T23:08:30.048Z",
+    "score": 25,
+    "scoreBreakdown": {
+      "totalScore": 25,
+      "tier": "Low Priority",
+      "reasons": [
+        "+15 High-ticket aesthetic services are visible",
+        "+5 Google rating is 4.0 or higher",
+        "+5 Review count is over 25"
+      ],
+      "weaknesses": [],
+      "recommendedAction": "Keep in database, but do not prioritize for calling."
+    }
+  },
+  {
+    "id": "-lkCbwEMWzZVOc0WM7mdF",
+    "businessName": "Vivid Renewal Med Spa",
+    "city": "Tampa",
+    "state": "FL",
+    "phone": "813-555-0126",
+    "website": "https://vividrenewal.example",
+    "instagram": "https://instagram.com/vividrenewal.example",
+    "source": "sample_csv",
+    "googleRating": 4.4,
+    "reviewCount": 47,
+    "services": [
+      "Laser resurfacing",
+      "Microneedling",
+      "Weight loss"
+    ],
+    "visibleWeaknesses": [
+      "No online booking visible",
+      "No chatbot",
+      "Weak website",
+      "No SMS follow-up visible"
+    ],
+    "status": "scored",
+    "callStatus": "not_called",
+    "callAttempts": 0,
+    "optOut": false,
+    "callLogs": [],
+    "createdAt": "2026-05-09T23:08:30.048Z",
+    "updatedAt": "2026-05-09T23:08:30.048Z",
+    "score": 100,
+    "scoreBreakdown": {
+      "totalScore": 100,
+      "tier": "Priority A",
+      "reasons": [
+        "+20 No online booking is visible",
+        "+15 Website appears slow, weak, or outdated",
+        "+15 Review count is under 50",
+        "+10 No chatbot is visible",
+        "+15 No SMS follow-up is visible",
+        "+15 High-ticket aesthetic services are visible",
+        "+5 Google rating is 4.0 or higher",
+        "+5 Review count is over 25"
+      ],
+      "weaknesses": [
+        "Booking flow appears weak or missing",
+        "Website conversion quality may be low",
+        "Review volume is still developing",
+        "Website has no immediate lead capture assistant",
+        "Follow-up is likely manual or inconsistent"
+      ],
+      "recommendedAction": "Queue for AI call after GHL sync and business-hours check."
+    }
+  }
+]
