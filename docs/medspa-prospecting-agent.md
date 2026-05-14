@@ -263,6 +263,50 @@ For a production deployment:
 6. Point the AI caller outcome webhook to `/api/ai-call/outcome`.
 7. Configure GHL and Make/Zapier workflows to suppress `do_not_contact`.
 
+### Vercel deployment (frontend + `/api/route-prospect` for GHL Agent Studio)
+
+The repo ships with `vercel.json` and a Vercel serverless function at
+`api/route-prospect.ts` that imports the shared `routeProspect` logic from
+`src/lib/routing.ts`. The public Vercel URL exposes the same non-blocking
+routing contract as the local Express server without duplicating logic.
+
+What Vercel runs:
+
+- `npm run build` produces the static frontend in `dist/`.
+- Files under `api/` are auto-detected as Node serverless functions.
+- All non-`/api` routes fall back to `index.html` (SPA routing).
+
+To deploy after merging to `main`:
+
+```bash
+npx vercel --token $VERCEL_TOKEN --prod --yes
+```
+
+The first run will prompt you to link the local checkout to a Vercel project;
+subsequent runs are non-interactive. Drop `--prod` for a preview deploy.
+
+The exact public URL pattern that GHL / Lixen Agent Studio must call:
+
+```
+POST https://<your-vercel-project>.vercel.app/api/route-prospect
+Content-Type: application/json
+```
+
+Body and response shape are identical to the local Express endpoint
+documented above. The handler is mock-safe — it never calls GHL or the AI
+caller; it only returns a routing decision. To exercise it locally against the
+serverless code path, use `vercel dev`:
+
+```bash
+npx vercel dev
+curl -s -X POST http://localhost:3000/api/route-prospect \
+  -H 'content-type: application/json' \
+  -d '{"businessName":"Glow Med Spa","city":"Irvine","website":"https://glow.example","leadScore":82}'
+```
+
+Unit coverage for both the shared routing module and the serverless handler
+lives in `tests/routing.test.ts` and `tests/api-route-prospect.test.ts`.
+
 ## Known MVP Limits
 
 - Google Sheets endpoint is a credential-safe placeholder; CSV import is complete.
