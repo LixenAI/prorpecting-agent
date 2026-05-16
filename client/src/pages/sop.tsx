@@ -17,7 +17,7 @@ export default function Sop() {
           <CardContent className="text-sm space-y-1">
             <ol className="list-decimal pl-5 space-y-1">
               <li>Open Dashboard. Confirm readiness ≥ 80.</li>
-              <li>Confirm Ava Outbound is configured (or flag the blocker).</li>
+              <li>Verify Ava Outbound Ready card still reads "Verified".</li>
               <li>Run a Hot smoke test on Lead Routing.</li>
               <li>Scan GHL Pipeline for stuck leads &gt; 1 day in AI Call Queued.</li>
               <li>Review no-answer streaks; stop any contact at 3 attempts.</li>
@@ -89,7 +89,7 @@ export default function Sop() {
           </CardHeader>
           <CardContent className="text-sm space-y-1">
             <ul className="list-disc pl-5 space-y-1">
-              <li>No outbound dial until A2P/voice compliance is confirmed for the caller ID.</li>
+              <li>A2P/voice compliance is approved for caller ID +1 562-262-5356 — keep this current.</li>
               <li>Ava must disclose AI honestly when asked.</li>
               <li>Capture opt-outs immediately; mark <code className="font-mono text-xs">do_not_contact = true</code> in GHL.</li>
               <li>Respect 8am–8pm local quiet hours.</li>

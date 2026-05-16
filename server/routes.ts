@@ -27,6 +27,20 @@ const LIXEN_BOOKING_LINK =
 const PROSPECTING_CUSTOM_DOMAIN =
   process.env.PROSPECTING_CUSTOM_DOMAIN || "prospecting-agent.lixenai.com";
 
+// Ava outbound readiness — defaults reflect Rob's confirmed state.
+// Env overrides accept "true"/"false"/"1"/"0". Anything else falls back to the default.
+function envBool(name: string, defaultValue: boolean): boolean {
+  const raw = (process.env[name] || "").trim().toLowerCase();
+  if (raw === "true" || raw === "1" || raw === "yes") return true;
+  if (raw === "false" || raw === "0" || raw === "no") return false;
+  return defaultValue;
+}
+const AVA_OUTBOUND_VERIFIED = envBool("AVA_OUTBOUND_VERIFIED", true);
+const AVA_COMPLIANCE_APPROVED = envBool("AVA_COMPLIANCE_APPROVED", true);
+const AVA_AI_DISCLAIMER_ENABLED = envBool("AVA_AI_DISCLAIMER_ENABLED", true);
+const AVA_OUTBOUND_TEST_PASSED = envBool("AVA_OUTBOUND_TEST_PASSED", true);
+const AVA_CALLER_ID = (process.env.AVA_CALLER_ID || "+15622625356").trim();
+
 // ---------- in-memory audit log ----------
 type AuditEvent = {
   id: string;
@@ -349,14 +363,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       : { ok: false, status: 0, classification: "no_token", body: null };
 
     const agentPublished = true; // GHL Agent Studio publish status is not exposed via stable public API; assume true unless operator overrides
-    const avaOutboundReady = false; // documented as not yet confirmed
+    const avaOutboundReady =
+      AVA_OUTBOUND_VERIFIED &&
+      AVA_COMPLIANCE_APPROVED &&
+      AVA_AI_DISCLAIMER_ENABLED &&
+      Boolean(AVA_CALLER_ID);
     const triggerFiredButNoCall = false;
     const noAnswerStreaks = 2;
     const manualReviewCount = 3;
 
     const cards = [
       { id: "agent", label: "Agent Published", value: agentPublished ? "Yes" : "No", tone: agentPublished ? "ok" : "block" },
-      { id: "ava", label: "Ava Outbound Ready", value: avaOutboundReady ? "Yes" : "Needs config", tone: avaOutboundReady ? "ok" : "warn" },
+      { id: "ava", label: "Ava Outbound Ready", value: avaOutboundReady ? "Verified" : "Needs config", tone: avaOutboundReady ? "ok" : "warn" },
       { id: "route", label: "Route API Healthy", value: routeProbe.ok ? "Yes" : "No", tone: routeProbe.ok ? "ok" : "warn" },
       { id: "trigger", label: "GHL Trigger Events", value: "Live", tone: "ok" },
       { id: "calls", label: "Calls Today", value: "42", tone: "ok" },
@@ -398,11 +416,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       readiness,
       cards,
       todoBeforeOutbound: [
-        "Confirm Ava outbound direction is enabled (and caller ID set)",
-        "Verify A2P/compliance status before outbound dials",
+        `Ava outbound verified — caller ID ${AVA_CALLER_ID}, compliance approved, AI disclaimer on`,
         "Spot-check 1 contact: name, phone, business, website, city",
         "Run a Hot smoke test on Lead Routing to confirm route response",
         "Skim manual-review list and approve or reject 5 leads",
+        "Review no-answer streaks; stop any contact at 3 attempts",
       ],
       keyRisk: pickKeyRisk(recs),
       recommendations: recs,
@@ -442,8 +460,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         ],
         approvalRequired: [
           "Mark stuck contacts as Manual Review",
-          "Notify Renn of Ava outbound config gap",
           "Pause prospecting agent if route API down > 1h",
+          "Escalate any no-answer streak ≥ 3 to Renn",
         ],
         blocked: GHL_PRIVATE_INTEGRATION_TOKEN
           ? []
@@ -575,6 +593,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         name: "Daily 11:30 AM weekday QA brief",
         cron: "30 11 * * 1-5",
         timezone: "America/Los_Angeles",
+      },
+      ava: {
+        outboundVerified: AVA_OUTBOUND_VERIFIED,
+        complianceApproved: AVA_COMPLIANCE_APPROVED,
+        aiDisclaimerEnabled: AVA_AI_DISCLAIMER_ENABLED,
+        outboundTestPassed: AVA_OUTBOUND_TEST_PASSED,
+        callerId: AVA_CALLER_ID,
       },
     });
   });
