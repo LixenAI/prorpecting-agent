@@ -117,6 +117,7 @@ function classifyStatus(status: number, body: any): string {
   }
   if (status === 403) return "forbidden";
   if (status === 404) return "not_found";
+  if (status === 429) return "rate_limited";
   if (status === 0) return "network_error";
   return `http_${status}`;
 }
@@ -189,6 +190,323 @@ function buildRecommendations(input: {
     });
   }
   return recs;
+}
+
+// ---------- live pipeline fetch (read-only) ----------
+type StageDef = { id: string; name: string };
+type LiveContact = {
+  id: string;
+  name: string;
+  business?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  tags?: string[];
+  stage: string;
+  status?: string | null;
+  lastActivity: string;
+  score?: number;
+  queuedHours?: number;
+  stuck?: boolean;
+  attempts?: number;
+  capped?: boolean;
+  enrichment?: string;
+};
+
+// Stages the dashboard always renders (label -> regex/aliases used to match GHL stage names)
+const PIPELINE_STAGE_DISPLAY: { name: string; aliases: RegExp[] }[] = [
+  { name: "New Prospect", aliases: [/^new\s*prospect/i, /^prospect(s)?$/i, /^new$/i] },
+  { name: "Scored Prospect", aliases: [/scored/i, /enriched/i, /^score(d)?\s*prospect/i] },
+  { name: "AI Call Queued", aliases: [/ai\s*call\s*queued/i, /call\s*queued/i, /queued/i] },
+  { name: "Called — No Answer", aliases: [/no\s*answer/i, /called\s*[-—–]\s*no/i, /no[-_\s]*answer/i] },
+  { name: "Interested", aliases: [/^interested/i, /warm/i] },
+  { name: "Audit Booked", aliases: [/audit\s*booked/i, /booked/i, /appointment/i] },
+  { name: "Do Not Contact", aliases: [/do\s*not\s*contact/i, /dnc/i, /opt[-\s]?out/i] },
+  { name: "Follow Up Needed", aliases: [/follow[-\s]?up/i, /status\s*alignment/i, /general/i] },
+];
+
+function pickDisplayBucket(stageName: string | undefined): string | null {
+  if (!stageName) return null;
+  for (const def of PIPELINE_STAGE_DISPLAY) {
+    if (def.aliases.some((rx) => rx.test(stageName))) return def.name;
+  }
+  return null;
+}
+
+function pickProspectingPipeline(pipelines: any[]): any | null {
+  if (!Array.isArray(pipelines) || pipelines.length === 0) return null;
+  // Prefer pipelines mentioning "prospect" / "medspa" / "lead"; otherwise first.
+  const byScore = pipelines
+    .map((p) => {
+      const n = String(p?.name || "").toLowerCase();
+      let score = 0;
+      if (n.includes("prospect")) score += 5;
+      if (n.includes("medspa") || n.includes("med spa")) score += 3;
+      if (n.includes("lead")) score += 2;
+      if (n.includes("outbound")) score += 1;
+      return { p, score };
+    })
+    .sort((a, b) => b.score - a.score);
+  return byScore[0]?.p || pipelines[0] || null;
+}
+
+function extractContactName(opp: any): string {
+  const c = opp?.contact || {};
+  const name =
+    opp?.contactName ||
+    c?.name ||
+    [c?.firstName, c?.lastName].filter(Boolean).join(" ").trim() ||
+    opp?.name ||
+    c?.companyName ||
+    "Unnamed";
+  return String(name).trim() || "Unnamed";
+}
+
+function extractBusiness(opp: any): string | null {
+  const c = opp?.contact || {};
+  return c?.companyName || opp?.companyName || null;
+}
+
+function extractPhone(opp: any): string | null {
+  return opp?.contact?.phone || opp?.phone || null;
+}
+
+function extractEmail(opp: any): string | null {
+  return opp?.contact?.email || opp?.email || null;
+}
+
+function extractTags(opp: any): string[] {
+  const t = opp?.contact?.tags || opp?.tags;
+  if (!Array.isArray(t)) return [];
+  return t.map((x: any) => String(x)).filter(Boolean);
+}
+
+function extractLastActivity(opp: any): string {
+  const candidates = [
+    opp?.lastStatusChangeAt,
+    opp?.updatedAt,
+    opp?.lastActivityAt,
+    opp?.lastActionDate,
+    opp?.contact?.lastActivity,
+    opp?.dateAdded,
+    opp?.createdAt,
+  ];
+  for (const c of candidates) {
+    if (!c) continue;
+    const d = new Date(c);
+    if (!Number.isNaN(d.getTime())) return d.toISOString();
+  }
+  return new Date().toISOString();
+}
+
+function extractScore(opp: any): number | undefined {
+  const cf = opp?.customFields || opp?.customField || [];
+  if (Array.isArray(cf)) {
+    for (const f of cf) {
+      const key = String(f?.fieldKey || f?.key || f?.name || "").toLowerCase();
+      if (key.includes("score") || key.includes("lead_score")) {
+        const v = Number(f?.value ?? f?.fieldValue ?? f?.fieldValueString);
+        if (!Number.isNaN(v)) return v;
+      }
+    }
+  }
+  const s = Number(opp?.leadValue ?? opp?.monetaryValue);
+  return Number.isFinite(s) && s > 0 && s <= 100 ? s : undefined;
+}
+
+function computeFlags(c: Pick<LiveContact, "phone" | "lastActivity" | "stage" | "tags">): {
+  stuck?: boolean;
+  queuedHours?: number;
+  enrichment?: string;
+} {
+  const out: { stuck?: boolean; queuedHours?: number; enrichment?: string } = {};
+  if (!c.phone) out.enrichment = "missing-phone";
+  if (/queued/i.test(c.stage)) {
+    const hours = Math.round((Date.now() - new Date(c.lastActivity).getTime()) / 3600000);
+    if (hours >= 24) {
+      out.queuedHours = hours;
+      out.stuck = true;
+    }
+  }
+  return out;
+}
+
+async function fetchLivePipeline(): Promise<
+  | {
+      ok: true;
+      pipelineId: string;
+      pipelineName: string;
+      stages: {
+        name: string;
+        count: number;
+        contacts: LiveContact[];
+      }[];
+      blockers: { id: string; text: string; severity: "warn" | "block" }[];
+      raw: { pipelinesCount: number; opportunitiesFetched: number };
+    }
+  | {
+      ok: false;
+      step: "pipelines" | "no_pipeline" | "opportunities";
+      status: number;
+      classification: string;
+      message?: string;
+    }
+> {
+  // Step 1 — pipelines
+  const pipelinesRes = await ghlFetch(
+    `/opportunities/pipelines?locationId=${encodeURIComponent(GHL_LOCATION_ID)}`,
+    { apiVersion: GHL_OPP_API_VERSION }
+  );
+  if (!pipelinesRes.ok) {
+    return {
+      ok: false,
+      step: "pipelines",
+      status: pipelinesRes.status,
+      classification: pipelinesRes.classification,
+      message: typeof pipelinesRes.body?.message === "string" ? pipelinesRes.body.message : undefined,
+    };
+  }
+  const pipelines = Array.isArray(pipelinesRes.body?.pipelines)
+    ? pipelinesRes.body.pipelines
+    : Array.isArray(pipelinesRes.body)
+      ? pipelinesRes.body
+      : [];
+  const pipeline = pickProspectingPipeline(pipelines);
+  if (!pipeline?.id) {
+    return {
+      ok: false,
+      step: "no_pipeline",
+      status: 404,
+      classification: "pipeline_not_found",
+      message: `No pipeline returned for location ${GHL_LOCATION_ID}.`,
+    };
+  }
+  const pipelineId = String(pipeline.id);
+  const pipelineName = String(pipeline.name || "Pipeline");
+  const stagesDef: StageDef[] = Array.isArray(pipeline?.stages)
+    ? pipeline.stages.map((s: any) => ({ id: String(s?.id || ""), name: String(s?.name || "") }))
+    : [];
+  const stageNameById = new Map<string, string>();
+  for (const s of stagesDef) stageNameById.set(s.id, s.name);
+
+  // Step 2 — opportunities. Page up to ~200 opportunities (4 pages × 50) to stay light.
+  const collected: any[] = [];
+  let startAfter: string | undefined;
+  let startAfterId: string | undefined;
+  for (let page = 0; page < 4; page += 1) {
+    const params = new URLSearchParams({
+      location_id: GHL_LOCATION_ID,
+      pipeline_id: pipelineId,
+      limit: "50",
+    });
+    if (startAfter) params.set("startAfter", startAfter);
+    if (startAfterId) params.set("startAfterId", startAfterId);
+    const oppRes = await ghlFetch(`/opportunities/search?${params.toString()}`, {
+      apiVersion: GHL_OPP_API_VERSION,
+    });
+    if (!oppRes.ok) {
+      return {
+        ok: false,
+        step: "opportunities",
+        status: oppRes.status,
+        classification: oppRes.classification,
+        message: typeof oppRes.body?.message === "string" ? oppRes.body.message : undefined,
+      };
+    }
+    const list: any[] = Array.isArray(oppRes.body?.opportunities)
+      ? oppRes.body.opportunities
+      : Array.isArray(oppRes.body)
+        ? oppRes.body
+        : [];
+    collected.push(...list);
+    const meta = oppRes.body?.meta || {};
+    const nextStartAfter = meta?.startAfter || meta?.nextStartAfter;
+    const nextStartAfterId = meta?.startAfterId || meta?.nextStartAfterId;
+    if (!nextStartAfter || list.length === 0) break;
+    startAfter = String(nextStartAfter);
+    startAfterId = nextStartAfterId ? String(nextStartAfterId) : undefined;
+  }
+
+  // Step 3 — bucket opportunities into display stages
+  const buckets = new Map<string, LiveContact[]>();
+  for (const def of PIPELINE_STAGE_DISPLAY) buckets.set(def.name, []);
+
+  for (const opp of collected) {
+    const stageRawName = stageNameById.get(String(opp?.pipelineStageId || opp?.stageId || "")) || opp?.stage || "";
+    const tags = extractTags(opp);
+    let bucket = pickDisplayBucket(stageRawName);
+    // DNC tag overrides stage match
+    if (tags.some((t) => /do[-_\s]*not[-_\s]*contact|^dnc$/i.test(t))) {
+      bucket = "Do Not Contact";
+    }
+    if (!bucket) continue;
+    const phone = extractPhone(opp);
+    const lastActivity = extractLastActivity(opp);
+    const baseContact: LiveContact = {
+      id: String(opp?.id || opp?.contactId || Math.random().toString(36).slice(2)),
+      name: extractContactName(opp),
+      business: extractBusiness(opp),
+      phone,
+      email: extractEmail(opp),
+      tags,
+      stage: stageRawName,
+      status: opp?.status || null,
+      lastActivity,
+      score: extractScore(opp),
+    };
+    const flags = computeFlags({ phone, lastActivity, stage: stageRawName, tags });
+    Object.assign(baseContact, flags);
+    // attempts (called — no answer)
+    if (/no\s*answer/i.test(stageRawName)) {
+      const attempts = Number(opp?.callAttempts ?? opp?.attempts);
+      if (Number.isFinite(attempts) && attempts > 0) {
+        baseContact.attempts = attempts;
+        if (attempts >= 3) baseContact.capped = true;
+      }
+    }
+    buckets.get(bucket)!.push(baseContact);
+  }
+
+  // Trim per-stage display to avoid huge payloads; keep counts accurate.
+  const stages = PIPELINE_STAGE_DISPLAY.map((def) => {
+    const all = buckets.get(def.name) || [];
+    return {
+      name: def.name,
+      count: all.length,
+      contacts: all.slice(0, 25),
+    };
+  });
+
+  // Blockers
+  const blockers: { id: string; text: string; severity: "warn" | "block" }[] = [];
+  const stuck = stages
+    .flatMap((s) => s.contacts)
+    .filter((c) => c.stuck && c.queuedHours);
+  for (const c of stuck.slice(0, 5)) {
+    blockers.push({
+      id: `stuck-${c.id}`,
+      text: `${c.name} stuck ${c.queuedHours}h in AI Call Queued`,
+      severity: "warn",
+    });
+  }
+  const missingPhone = stages
+    .flatMap((s) => s.contacts)
+    .filter((c) => c.enrichment === "missing-phone" && /prospect|scored/i.test(c.stage));
+  for (const c of missingPhone.slice(0, 5)) {
+    blockers.push({
+      id: `nophone-${c.id}`,
+      text: `${c.name} missing phone — cannot be queued`,
+      severity: "block",
+    });
+  }
+
+  return {
+    ok: true,
+    pipelineId,
+    pipelineName,
+    stages,
+    blockers,
+    raw: { pipelinesCount: pipelines.length, opportunitiesFetched: collected.length },
+  };
 }
 
 // ---------- demo data ----------
@@ -359,8 +677,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     // run probes
     const routeProbe = await probeRouteApi();
     const ghlProbe = GHL_PRIVATE_INTEGRATION_TOKEN
-      ? await ghlFetch(`/locations/${encodeURIComponent(GHL_LOCATION_ID)}`)
+      ? await ghlFetch(
+          `/opportunities/pipelines?locationId=${encodeURIComponent(GHL_LOCATION_ID)}`,
+          { apiVersion: GHL_OPP_API_VERSION }
+        )
       : { ok: false, status: 0, classification: "no_token", body: null };
+    const pipelineDataMode: "live" | "fallback" | "error" = !GHL_PRIVATE_INTEGRATION_TOKEN
+      ? "fallback"
+      : ghlProbe.ok
+        ? "live"
+        : "error";
 
     const agentPublished = true; // GHL Agent Studio publish status is not exposed via stable public API; assume true unless operator overrides
     const avaOutboundReady =
@@ -372,11 +698,19 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const noAnswerStreaks = 2;
     const manualReviewCount = 3;
 
+    const pipelineCard =
+      pipelineDataMode === "live"
+        ? { id: "pipeline", label: "Pipeline Data", value: "Live GHL", tone: "ok" as const }
+        : pipelineDataMode === "error"
+          ? { id: "pipeline", label: "Pipeline Data", value: `GHL Error · ${ghlProbe.classification}`, tone: "block" as const }
+          : { id: "pipeline", label: "Pipeline Data", value: "Demo fallback", tone: "warn" as const };
+
     const cards = [
       { id: "agent", label: "Agent Published", value: agentPublished ? "Yes" : "No", tone: agentPublished ? "ok" : "block" },
       { id: "ava", label: "Ava Outbound Ready", value: avaOutboundReady ? "Verified" : "Needs config", tone: avaOutboundReady ? "ok" : "warn" },
       { id: "route", label: "Route API Healthy", value: routeProbe.ok ? "Yes" : "No", tone: routeProbe.ok ? "ok" : "warn" },
-      { id: "trigger", label: "GHL Trigger Events", value: "Live", tone: "ok" },
+      pipelineCard,
+      { id: "trigger", label: "GHL Trigger Events", value: pipelineDataMode === "live" ? "Live" : "Demo", tone: pipelineDataMode === "live" ? "ok" : "warn" },
       { id: "calls", label: "Calls Today", value: "42", tone: "ok" },
       { id: "noans", label: "No Answer Streaks", value: String(noAnswerStreaks), tone: noAnswerStreaks > 0 ? "warn" : "ok" },
       { id: "review", label: "Manual Review", value: String(manualReviewCount), tone: manualReviewCount > 0 ? "info" : "ok" },
@@ -426,6 +760,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       recommendations: recs,
       routeApiProbe: { ok: routeProbe.ok, status: routeProbe.status, classification: routeProbe.classification },
       ghlProbe: { ok: ghlProbe.ok, status: ghlProbe.status, classification: ghlProbe.classification },
+      pipelineDataMode,
     });
   });
 
@@ -535,39 +870,108 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
   // GHL pipeline watch (read-only)
   app.get("/api/ghl/pipeline-watch", requireOperator, async (_req, res) => {
+    const fetchedAt = new Date().toISOString();
     if (!GHL_PRIVATE_INTEGRATION_TOKEN) {
       audit("ghl", "Pipeline watch served demo (no token)");
-      return res.json({ ok: true, demo: true, ...demoPipeline() });
-    }
-    // Try to fetch pipelines (read-only). On failure, fall back to demo with diagnostics.
-    const r = await ghlFetch(
-      `/opportunities/pipelines?locationId=${encodeURIComponent(GHL_LOCATION_ID)}`,
-      { apiVersion: GHL_OPP_API_VERSION }
-    );
-    audit("ghl", `Pipeline read-only fetch ${r.classification}`, { status: r.status });
-    if (!r.ok) {
       return res.json({
         ok: true,
+        dataMode: "fallback",
         demo: true,
-        diagnostic: { status: r.status, classification: r.classification },
+        fetchedAt,
+        diagnostic: {
+          status: 0,
+          classification: "no_token",
+          step: "config",
+          message: "GHL_PRIVATE_INTEGRATION_TOKEN is not configured.",
+          nextSteps: nextStepsFor("no_token"),
+        },
         ...demoPipeline(),
       });
     }
-    // We have raw pipelines but stage-level opportunity reads are heavy; surface what's safe.
+    const live = await fetchLivePipeline();
+    if (!live.ok) {
+      audit("ghl", `Pipeline live fetch failed ${live.classification}`, {
+        status: live.status,
+        step: live.step,
+      });
+      return res.json({
+        ok: true,
+        dataMode: "error",
+        demo: true,
+        fetchedAt,
+        diagnostic: {
+          status: live.status,
+          classification: live.classification,
+          step: live.step,
+          message: live.message,
+          nextSteps: nextStepsFor(live.classification),
+        },
+        ...demoPipeline(),
+      });
+    }
+    audit("ghl", `Pipeline live fetch ok`, {
+      pipeline: live.pipelineName,
+      opportunities: live.raw.opportunitiesFetched,
+    });
     return res.json({
       ok: true,
+      dataMode: "live",
       demo: false,
-      raw: r.body,
-      ...demoPipeline(),
+      fetchedAt,
+      pipelineId: live.pipelineId,
+      pipelineName: live.pipelineName,
+      stages: live.stages,
+      blockers: live.blockers,
+      diagnostic: {
+        status: 200,
+        classification: "ok",
+        pipelinesCount: live.raw.pipelinesCount,
+        opportunitiesFetched: live.raw.opportunitiesFetched,
+      },
     });
   });
 
   // integrations
-  app.get("/api/integrations/status", requireOperator, (_req, res) => {
+  app.get("/api/integrations/status", requireOperator, async (_req, res) => {
     const { isDev } = getOperatorToken();
+    let pipelineWatch: {
+      dataMode: "live" | "fallback" | "error";
+      status: number;
+      classification: string;
+      pipelineName?: string;
+      pipelinesCount?: number;
+    } = { dataMode: "fallback", status: 0, classification: "no_token" };
+    if (GHL_PRIVATE_INTEGRATION_TOKEN) {
+      const probe = await ghlFetch(
+        `/opportunities/pipelines?locationId=${encodeURIComponent(GHL_LOCATION_ID)}`,
+        { apiVersion: GHL_OPP_API_VERSION }
+      );
+      if (probe.ok) {
+        const list = Array.isArray(probe.body?.pipelines)
+          ? probe.body.pipelines
+          : Array.isArray(probe.body)
+            ? probe.body
+            : [];
+        const picked = pickProspectingPipeline(list);
+        pipelineWatch = {
+          dataMode: list.length > 0 ? "live" : "error",
+          status: probe.status,
+          classification: list.length > 0 ? "ok" : "pipeline_not_found",
+          pipelinesCount: list.length,
+          pipelineName: picked?.name,
+        };
+      } else {
+        pipelineWatch = {
+          dataMode: "error",
+          status: probe.status,
+          classification: probe.classification,
+        };
+      }
+    }
     res.json({
       ok: true,
       devFallback: isDev,
+      pipelineWatch,
       configured: {
         OPERATOR_TOKEN: !isDev,
         GHL_LOCATION_ID: Boolean(GHL_LOCATION_ID),
@@ -680,8 +1084,19 @@ function nextStepsFor(classification: string): string[] {
       return ["Token works but lacks scopes. Re-create with opportunities + contacts read scopes."];
     case "not_found":
       return ["Endpoint or location not found. Verify GHL_LOCATION_ID and API version."];
+    case "pipeline_not_found":
+      return [
+        "Location returned zero pipelines or no prospecting pipeline.",
+        "Confirm a pipeline named 'Prospect' (or similar) exists in this GHL location.",
+        "Confirm GHL_LOCATION_ID points at the correct sub-account.",
+      ];
     case "no_token":
-      return ["Paste a Private Integration token to test."];
+      return [
+        "Set GHL_PRIVATE_INTEGRATION_TOKEN in Render env vars and redeploy.",
+        "Create the Private Integration in GHL with read scopes for opportunities and contacts.",
+      ];
+    case "rate_limited":
+      return ["HighLevel rate limited the request. Retry in a minute."];
     case "network_error":
       return ["Network/DNS failure reaching HighLevel. Retry in a moment."];
     default:

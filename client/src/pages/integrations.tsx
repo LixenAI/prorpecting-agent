@@ -12,7 +12,26 @@ type IntStatus = {
   configured: Record<string, boolean>;
   values: Record<string, string>;
   scheduledQaBrief: { name: string; cron: string; timezone: string };
+  pipelineWatch?: {
+    dataMode: "live" | "fallback" | "error";
+    status: number;
+    classification: string;
+    pipelineName?: string;
+    pipelinesCount?: number;
+  };
 };
+
+function pipelineBadgeTone(mode?: "live" | "fallback" | "error"): "ok" | "warn" | "block" {
+  if (mode === "live") return "ok";
+  if (mode === "error") return "block";
+  return "warn";
+}
+
+function pipelineBadgeLabel(mode?: "live" | "fallback" | "error"): string {
+  if (mode === "live") return "Live GHL Data";
+  if (mode === "error") return "GHL Error";
+  return "Demo Fallback";
+}
 
 type TestResult = {
   ok: boolean;
@@ -105,6 +124,37 @@ PROSPECTING_CUSTOM_DOMAIN=${data?.values.PROSPECTING_CUSTOM_DOMAIN ?? "prospecti
           </Card>
         ))}
       </div>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-base text-[hsl(217_80%_24%)]">Live pipeline watch</CardTitle>
+        </CardHeader>
+        <CardContent className="text-sm space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge tone={pipelineBadgeTone(data?.pipelineWatch?.dataMode)}>
+              {pipelineBadgeLabel(data?.pipelineWatch?.dataMode)}
+            </StatusBadge>
+            <StatusBadge tone={data?.configured?.GHL_PRIVATE_INTEGRATION_TOKEN ? "ok" : "warn"}>
+              token {data?.configured?.GHL_PRIVATE_INTEGRATION_TOKEN ? "configured" : "missing"}
+            </StatusBadge>
+            {data?.pipelineWatch?.pipelineName && (
+              <StatusBadge tone="info">pipeline · {data.pipelineWatch.pipelineName}</StatusBadge>
+            )}
+            {typeof data?.pipelineWatch?.pipelinesCount === "number" && (
+              <span className="text-xs text-muted-foreground">
+                {data.pipelineWatch.pipelinesCount} pipeline(s) at location
+              </span>
+            )}
+          </div>
+          <div className="text-xs text-muted-foreground font-mono">
+            classification: {data?.pipelineWatch?.classification ?? "—"}
+            {data?.pipelineWatch?.status ? ` · http ${data.pipelineWatch.status}` : ""}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Live mode replaces the demo Glow Med Spa / +1 555 records on the GHL Pipeline page with real contacts and opportunities from this location. Reads only; never writes.
+          </p>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         <Card>

@@ -10,7 +10,15 @@ type Summary = {
   todoBeforeOutbound: string[];
   keyRisk: { id: string; severity: "info" | "warn" | "block"; text: string };
   recommendations: { id: string; severity: "info" | "warn" | "block"; text: string }[];
+  pipelineDataMode?: "live" | "fallback" | "error";
+  ghlProbe?: { ok: boolean; status: number; classification: string };
 };
+
+function pipelineBadge(mode: Summary["pipelineDataMode"]): { tone: Tone; label: string } {
+  if (mode === "live") return { tone: "ok", label: "Live GHL Data" };
+  if (mode === "error") return { tone: "block", label: "GHL Error" };
+  return { tone: "warn", label: "Demo Fallback" };
+}
 
 const sevToTone: Record<string, Tone> = { info: "info", warn: "warn", block: "block" };
 
@@ -23,9 +31,15 @@ export default function Dashboard() {
         title="Morning outbound readiness"
         subtitle="Quick check of whether the LixenAI Prospecting Agent and Ava outbound workflow are running before the team starts the day."
         right={
-          <StatusBadge tone={data && data.readiness >= 80 ? "ok" : data && data.readiness >= 60 ? "warn" : "block"}>
-            Readiness {data?.readiness ?? "…"}/100
-          </StatusBadge>
+          <div className="flex items-center gap-2">
+            {(() => {
+              const b = pipelineBadge(data?.pipelineDataMode);
+              return <StatusBadge tone={b.tone}>{b.label}</StatusBadge>;
+            })()}
+            <StatusBadge tone={data && data.readiness >= 80 ? "ok" : data && data.readiness >= 60 ? "warn" : "block"}>
+              Readiness {data?.readiness ?? "…"}/100
+            </StatusBadge>
+          </div>
         }
       />
 
